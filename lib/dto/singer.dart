@@ -1,6 +1,8 @@
 class Singer {
+  final int id;
   final String name;
-  final String imageUrl;
+  final String? originalName;
+  final String profileImg;
 
-  Singer({required this.name, required this.imageUrl});
+  Singer(this.originalName, {required this.id, required this.name, required this.profileImg});
 }

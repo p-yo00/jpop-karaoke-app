@@ -1,10 +1,11 @@
 class Song {
-  final String no;
-  final String ky;
-  final String tj;
+  final int id;
   final String title;
+  final String originalTitle;
+  final String albumImg;
   final String singer;
-  final String imageUrl;
+  final int ky;
+  final int tj;
 
-  Song(this.no, this.ky, this.tj, this.singer, this.imageUrl, {required this.title});
+  Song(this.originalTitle, this.ky, this.tj, this.singer, this.albumImg, {required this.id, required this.title});
 }
