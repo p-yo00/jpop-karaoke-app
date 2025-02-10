@@ -5,18 +5,23 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class SingerPage extends StatelessWidget {
+  static const String baseUrl = String.fromEnvironment('API_BASE_URL');
+  static const String apiPort = "8080";
 
   const SingerPage({super.key});
 
-  Future<List<Singer>> fetchSinger() async {
-    return List.of({
-      Singer(name: "1", imageUrl: "https://picsum.photos/250?image=9"),
-      Singer(name: "2", imageUrl: "https://picsum.photos/250?image=10"),
-      Singer(name: "3", imageUrl: "https://picsum.photos/250?image=11"),
-      Singer(name: "4", imageUrl: "https://picsum.photos/250?image=12"),
-      Singer(name: "5", imageUrl: "https://picsum.photos/250?image=13"),
-      Singer(name: "6", imageUrl: "https://picsum.photos/250?image=14")
-    });
+  Future<List<Singer>> loadSingerList() async {
+    final url = Uri.parse("$baseUrl:$apiPort/singer");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonData = body['data']['content'];
+
+      return jsonData.map((json) => Singer.fromJson(json)).toList();
+    }
+
+    return Future.error("fail:load");
   }
 
   @override
@@ -26,7 +31,7 @@ class SingerPage extends StatelessWidget {
         body: Padding(
           padding: const EdgeInsets.all(8.0),
           child: FutureBuilder<List<Singer>>(
-              future: fetchSinger(), // API 호출 함수 연결
+              future: loadSingerList(), // API 호출 함수 연결
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator());
@@ -54,7 +59,7 @@ class SingerPage extends StatelessWidget {
                               builder: (context) => SongListPageWithAppBar(
                                   title: singer.name,
                                   mode: ListMode.singer,
-                                  modeValue: singer.name,
+                                  modeValue: singer.id.toString(),
                               ),
                             ),
                           );
@@ -68,13 +73,22 @@ class SingerPage extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
                               Image.network(
-                                singer.imageUrl,
-                                height: 120,
+                                "$baseUrl${singer.profileImg}",
+                                height: 130,
                                 fit: BoxFit.cover, // 이미지 꽉 채우기
+                              ),
+                              Spacer(flex: 1),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(singer.name,
+                                    style: TextStyle(fontSize: 24, fontFamily: 'NotoSans')
+                                ),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Text(singer.name, style: TextStyle(fontSize: 16)),
+                                child: Text(singer.name,
+                                    style: TextStyle(fontSize: 18, fontFamily: 'NotoSans')
+                                ),
                               ),
                             ],
                           ),

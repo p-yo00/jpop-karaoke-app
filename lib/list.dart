@@ -5,30 +5,37 @@ import 'package:hello_flutter/detail.dart';
 import 'package:hello_flutter/dto/song.dart';
 
 enum ListMode { ranking, singer, search, favorite }
+const String baseUrl = String.fromEnvironment('API_BASE_URL');
+const String apiPort = "8080";
 
 class LoadSongList {
-  static List<Song> loadSingerSongList(String singerName) {
-    return List.generate(10, (index) =>
-        Song(title:"",
-            "${index + 1}",
-            "${1000 + index}",
-            "${500 + index}",
-            singerName,
-            "https://picsum.photos/100?random=$index"
-        )
-    );
+
+  static Future<List<Song>> loadSingerSongList(String singerId) async {
+    final url = Uri.parse("$baseUrl:$apiPort/singer/$singerId/song");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonData = body['data']['content'];
+
+      return jsonData.map((json) => Song.fromJson(json)).toList();
+    }
+    return Future.error("fail:load");
   }
 
-  static List<Song> loadSearchSongList(String query) {
-    return List.generate(10, (index) =>
-        Song(title:query,
-            "${index + 1}",
-            "${1000 + index}",
-            "${500 + index}",
-            "가수 ${index + 1}",
-            "https://picsum.photos/100?random=$index"
-        )
-    );
+  static Future<List<Song>> loadSearchSongList(String query) async {
+    final url = Uri.parse("$baseUrl:$apiPort/song").replace(queryParameters: {
+      'q': query,
+    });
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonData = body['data']['content'];
+
+      return jsonData.map((json) => Song.fromJson(json)).toList();
+    }
+    return Future.error("fail:load");
   }
 }
 
@@ -39,19 +46,32 @@ class SongListPageWithAppBar extends StatelessWidget {
     } else if (mode == ListMode.search) {
       songList = LoadSongList.loadSearchSongList(modeValue);
     } else {
-      songList = [];
+      songList = SongListPage().loadBestSongList();
     }
   }
   final String title;
   final ListMode mode;
   final String modeValue;
-  List<Song> songList = [];
+  late Future<List<Song>> songList;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: SongListBody(songList: songList)
+        body: FutureBuilder<List<Song>>(
+            future: songList, // API 호출 함수 연결
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('불러오는데 실패했습니다.'));
+              } else if (snapshot.hasData) {
+                return SongListBody(songList: snapshot.data!);
+              } else {
+                return Center(child: Text('불러오는데 실패했습니다.'));
+              }
+            }
+        )
     );
   }
 }
@@ -60,32 +80,33 @@ class SongListPageWithAppBar extends StatelessWidget {
 class SongListPage extends StatelessWidget {
   const SongListPage({super.key});
 
-  Future<List<Song>> fetchSong() async {
-    return List.generate(10, (index) =>
-        Song(title:"",
-            "${index + 1}",
-            "${1000 + index}",
-            "${500 + index}",
-            "가수 ${index + 1}",
-            "https://picsum.photos/100?random=$index"
-        )
-    );
+  Future<List<Song>> loadBestSongList() async {
+    final url = Uri.parse("$baseUrl:$apiPort/song/chart100");
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonData = body['data'];
+
+      return jsonData.map((json) => Song.fromJson(json)).toList();
+    }
+    return Future.error("fail:load");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: FutureBuilder<List<Song>>(
-        future: fetchSong(), // API 호출 함수 연결
+        future: loadBestSongList(), // API 호출 함수 연결
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('불러오는데 실패했습니다.'));
+            return Center(child: Text('불러오는데 실패했습니다.(1)'));
           } else if (snapshot.hasData) {
             return SongListBody(songList: snapshot.data!);
           } else {
-            return Center(child: Text('불러오는데 실패했습니다.'));
+            return Center(child: Text('불러오는데 실패했습니다.(2)'));
           }
         }
       )
@@ -149,12 +170,12 @@ class SongListBody extends StatelessWidget {
                           // 인덱스
                           SizedBox(
                             width: 30,
-                            child: Text(song.no, textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+                            child: Text((index+1).toString(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
                           ),
                           // 이미지
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(song.imageUrl, width: 50, height: 50, fit: BoxFit.cover),
+                            child: Image.network("$baseUrl${song.albumImg}", width: 50, height: 50, fit: BoxFit.cover),
                           ),
                           const SizedBox(width: 10),
                           // 번호1 (금영)
@@ -167,7 +188,7 @@ class SongListBody extends StatelessWidget {
                                   color: Colors.blue,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(song.ky,
+                                child: Text(song.ky.toString(),
                                     style: const TextStyle(color: Colors.white, fontSize: 14)),
                               ),
                             ),
@@ -182,7 +203,7 @@ class SongListBody extends StatelessWidget {
                                   color: Colors.red,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(song.tj,
+                                child: Text(song.tj.toString(),
                                     style: const TextStyle(color: Colors.white, fontSize: 14)),
                               ),
                             ),
