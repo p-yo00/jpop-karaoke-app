@@ -52,7 +52,7 @@ class SongListPageWithAppBar extends StatelessWidget {
   final String title;
   final ListMode mode;
   final String modeValue;
-  late Future<List<Song>> songList;
+  late final Future<List<Song>> songList;
 
   @override
   Widget build(BuildContext context) {
