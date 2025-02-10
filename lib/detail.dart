@@ -9,7 +9,7 @@ class DetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(song.title!)),
+      appBar: AppBar(title: Text(song.title)),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
