@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -217,10 +218,12 @@ class SongListBody extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(song.title,
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                Text(song.singer,
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                AutoSizeText(song.title,
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  maxLines: 2,),
+                                AutoSizeText(song.singer,
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  maxLines: 1,),
                               ],
                             ),
                           ),

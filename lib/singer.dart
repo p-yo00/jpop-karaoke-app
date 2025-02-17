@@ -83,14 +83,16 @@ class SingerPage extends StatelessWidget {
                               Spacer(flex: 1),
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Text(singer.name,
-                                    style: TextStyle(fontSize: 24, fontFamily: 'NotoSans')
+                                child: AutoSizeText(singer.name,
+                                  style: TextStyle(fontSize: 24, fontFamily: 'NotoSans'),
+                                  maxLines: 1,
                                 ),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Text(singer.name,
-                                    style: TextStyle(fontSize: 18, fontFamily: 'NotoSans')
+                                child: AutoSizeText(singer.originalName ?? "",
+                                  style: TextStyle(fontSize: 18, fontFamily: 'NotoSans'),
+                                  maxLines: 1,
                                 ),
                               ),
                             ],
