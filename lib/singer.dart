@@ -76,6 +76,9 @@ class SingerPage extends StatelessWidget {
                                 "$baseUrl${singer.profileImg}",
                                 height: 130,
                                 fit: BoxFit.cover, // 이미지 꽉 채우기
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset('images/no_image.png', height: 130, fit: BoxFit.cover);
+                                },
                               ),
                               Spacer(flex: 1),
                               Padding(

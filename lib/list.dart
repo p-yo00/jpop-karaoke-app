@@ -175,7 +175,10 @@ class SongListBody extends StatelessWidget {
                           // 이미지
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network("$baseUrl${song.albumImg}", width: 50, height: 50, fit: BoxFit.cover),
+                            child: Image.network("$baseUrl${song.albumImg}", width: 50, height: 50, fit: BoxFit.cover, 
+                            errorBuilder: (context, error, stackTrace) {
+                              return Image.asset('images/no_image.png', width: 50, height: 50, fit: BoxFit.cover);
+                            }),
                           ),
                           const SizedBox(width: 10),
                           // 번호1 (금영)

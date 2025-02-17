@@ -14,7 +14,10 @@ class DetailPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.network(song.albumImg, width: 150, height: 150),
+            Image.network(song.albumImg, width: 150, height: 150,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset('images/no_image.png', width: 150, height: 150);
+            }),
             const SizedBox(height: 10),
             Text(song.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Text(song.singer, style: const TextStyle(fontSize: 16, color: Colors.grey)),
