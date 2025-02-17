@@ -16,7 +16,7 @@ class LoadSongList {
 
     if (response.statusCode == 200) {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
-      final List<dynamic> jsonData = body['data']['content'];
+      final List<dynamic> jsonData = body['data'];
 
       return jsonData.map((json) => Song.fromJson(json)).toList();
     }
@@ -31,7 +31,7 @@ class LoadSongList {
 
     if (response.statusCode == 200) {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
-      final List<dynamic> jsonData = body['data']['content'];
+      final List<dynamic> jsonData = body['data'];
 
       return jsonData.map((json) => Song.fromJson(json)).toList();
     }
