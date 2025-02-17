@@ -4,6 +4,7 @@ import 'package:hello_flutter/list.dart';
 import 'package:hello_flutter/dto/singer.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'bannerAd.dart';
 
 class SingerPage extends StatelessWidget {
   static const String baseUrl = String.fromEnvironment('API_BASE_URL');
@@ -27,7 +28,7 @@ class SingerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
+    const adCount = 7;
     return Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -40,7 +41,6 @@ class SingerPage extends StatelessWidget {
                 return Center(child: Text('불러오는데 실패했습니다.'));
                 } else if (snapshot.hasData) {
                   final List<Singer> singerList = snapshot.data!;
-
                   return GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2, // 한 줄에 2개
@@ -48,9 +48,16 @@ class SingerPage extends StatelessWidget {
                       mainAxisSpacing: 8,
                       childAspectRatio: 0.8,
                     ),
-                    itemCount: singerList.length,
+                    itemCount: singerList.length + (singerList.length ~/ adCount),
                     itemBuilder: (context, index) {
-                      final singer = singerList[index]; // 현재 아이템 정보 가져오기
+                      if ((index+1) % (adCount+1) == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: AdWidgetContainer(adHeight: -1),
+                        );
+                      }
+                      var singerIndex = index - ((index) ~/ (adCount+1));
+                      final singer = singerList[singerIndex]; // 현재 아이템 정보 가져오기
 
                       return GestureDetector( // 클릭 감지를 위해 GestureDetector 사용
                         onTap: () {

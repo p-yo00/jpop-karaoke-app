@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:hello_flutter/dto/song.dart';
+import 'package:hello_flutter/bannerAd.dart';
 
 enum ListMode { ranking, singer, search, favorite }
 const String baseUrl = String.fromEnvironment('API_BASE_URL');
@@ -114,10 +115,10 @@ class SongListPage extends StatelessWidget {
   }
 }
 
-
 class SongListBody extends StatelessWidget {
   const SongListBody({super.key, required this.songList});
   final List<Song> songList;
+  final int adCount = 7;
 
   @override
   Widget build(BuildContext context) {
@@ -151,17 +152,25 @@ class SongListBody extends StatelessWidget {
             // 2. 리스트뷰
             Expanded(
               child: ListView.builder(
-                itemCount: songList.length,
+                itemCount: songList.length + (songList.length ~/ adCount),
                 itemBuilder: (context, index) {
-                  var song = songList[index];
+                  if ((index+1) % (adCount+1) == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: AdWidgetContainer(adHeight: -1),
+                    );
+                  }
+                  var songIndex = index - ((index) ~/ (adCount+1));
+                  var song = songList[songIndex];
+
                   return InkWell(
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () { // 상세 페이지 현재 미구현
+                      /*Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => DetailPage(song: song),
                         ),
-                      );
+                      );*/
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -170,7 +179,7 @@ class SongListBody extends StatelessWidget {
                           // 인덱스
                           SizedBox(
                             width: 30,
-                            child: Text((index+1).toString(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+                            child: Text((songIndex+1).toString(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
                           ),
                           // 이미지
                           ClipRRect(
