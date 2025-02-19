@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/list.dart';
@@ -14,7 +16,10 @@ class SingerPage extends StatelessWidget {
 
   Future<List<Singer>> loadSingerList() async {
     final url = Uri.parse("$baseUrl:$apiPort/singer");
-    final response = await http.get(url);
+    final response = await http.get(url).timeout(
+      Duration(seconds: 30),
+      onTimeout: () => throw TimeoutException("요청 시간이 초과되었습니다."),
+    );
 
     if (response.statusCode == 200) {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -88,21 +93,21 @@ class SingerPage extends StatelessWidget {
                                   return Image.asset('images/no_image.png', height: 130, fit: BoxFit.cover);
                                 },
                               ),
-                              Spacer(flex: 1),
                               Padding(
-                                padding: const EdgeInsets.all(8.0),
+                                padding: const EdgeInsets.all(5.0),
                                 child: AutoSizeText(singer.name,
                                   style: TextStyle(fontSize: 24, fontFamily: 'NotoSans'),
                                   maxLines: 1,
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.all(8.0),
+                                padding: const EdgeInsets.all(3.0),
                                 child: AutoSizeText(singer.originalName ?? "",
                                   style: TextStyle(fontSize: 18, fontFamily: 'NotoSans'),
                                   maxLines: 1,
                                 ),
                               ),
+                              Spacer(flex: 1),
                             ],
                           ),
                         )

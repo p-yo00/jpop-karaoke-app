@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -13,7 +15,10 @@ class LoadSongList {
 
   static Future<List<Song>> loadSingerSongList(String singerId) async {
     final url = Uri.parse("$baseUrl:$apiPort/singer/$singerId/song");
-    final response = await http.get(url);
+    final response = await http.get(url).timeout(
+      Duration(seconds: 30),
+      onTimeout: () => throw TimeoutException("요청 시간이 초과되었습니다."),
+    );
 
     if (response.statusCode == 200) {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -28,7 +33,10 @@ class LoadSongList {
     final url = Uri.parse("$baseUrl:$apiPort/song").replace(queryParameters: {
       'q': query,
     });
-    final response = await http.get(url);
+    final response = await http.get(url).timeout(
+      Duration(seconds: 30),
+      onTimeout: () => throw TimeoutException("요청 시간이 초과되었습니다."),
+    );
 
     if (response.statusCode == 200) {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -84,7 +92,11 @@ class SongListPage extends StatelessWidget {
   Future<List<Song>> loadBestSongList() async {
     final url = Uri.parse("$baseUrl:$apiPort/song/chart100");
 
-    final response = await http.get(url);
+    final response = await http.get(url).timeout(
+      Duration(seconds: 30),
+      onTimeout: () => throw TimeoutException("요청 시간이 초과되었습니다."),
+    );
+
     if (response.statusCode == 200) {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
       final List<dynamic> jsonData = body['data'];
