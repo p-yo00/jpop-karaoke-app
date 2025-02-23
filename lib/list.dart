@@ -127,10 +127,18 @@ class SongListPage extends StatelessWidget {
   }
 }
 
-class SongListBody extends StatelessWidget {
-  const SongListBody({super.key, required this.songList});
+class SongListWidget extends State<SongListBody> {
+  SongListWidget({required this.songList});
+
   final List<Song> songList;
   final int adCount = 7;
+  bool isSelected = false;
+
+  void toggleIconColor(int songIndex) {
+    setState(() {
+      songList[songIndex].favorite = !songList[songIndex].favorite;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,8 +151,8 @@ class SongListBody extends StatelessWidget {
               color: Colors.grey[300],
               child: Row(
                 children: [
-                  const SizedBox(width: 30, child: Text("순위", textAlign: TextAlign.center)), // 인덱스
-                  const SizedBox(width: 50, child: Text("앨범", textAlign: TextAlign.center)), // 이미지
+                  const SizedBox(width: 30, child: Text("순위", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))), // 인덱스
+                  const SizedBox(width: 30, child: Text("찜", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))), // 이미지
                   Expanded(
                     flex: 2,
                     child: Text("금영", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
@@ -193,15 +201,18 @@ class SongListBody extends StatelessWidget {
                             width: 30,
                             child: Text((songIndex+1).toString(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
                           ),
-                          // 이미지
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network("$baseUrl${song.albumImg}", width: 50, height: 50, fit: BoxFit.cover, 
-                            errorBuilder: (context, error, stackTrace) {
-                              return Image.asset('images/no_image.png', width: 50, height: 50, fit: BoxFit.cover);
-                            }),
+                          // 찜
+                          SizedBox(
+                            width: 30,
+                            child: GestureDetector(
+                              onTap: () => toggleIconColor(songIndex),  // 아이콘을 클릭하면 색상 변경
+                              child: Icon(
+                                Icons.favorite,  // 사용할 아이콘
+                                color: song.favorite ? Colors.red : Colors.grey,  // 클릭 여부에 따라 색상 변경
+                                size: 20.0,  // 아이콘 크기
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 10),
                           // 번호1 (금영)
                           Expanded(
                             flex: 2,
@@ -239,10 +250,10 @@ class SongListBody extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 AutoSizeText(song.title,
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                   maxLines: 2,),
                                 AutoSizeText(song.singer,
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                                   maxLines: 1,),
                               ],
                             ),
@@ -258,4 +269,12 @@ class SongListBody extends StatelessWidget {
         )
     );
   }
+}
+
+class SongListBody extends StatefulWidget {
+  SongListBody({super.key, required this.songList});
+  final List<Song> songList;
+
+  @override
+  SongListWidget createState() => SongListWidget(songList: songList);
 }
