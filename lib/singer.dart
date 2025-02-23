@@ -41,9 +41,12 @@ class SingerPage extends StatelessWidget {
               future: loadSingerList(), // API 호출 함수 연결
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
+                  return Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
-                return Center(child: Text('불러오는데 실패했습니다.'));
+                  print("debug==============");
+                  print(snapshot.error);
+                  print("debug==============");
+                  return Center(child: Text('불러오는데 실패했습니다.'));
                 } else if (snapshot.hasData) {
                   final List<Singer> singerList = snapshot.data!;
                   return GridView.builder(
@@ -51,7 +54,7 @@ class SingerPage extends StatelessWidget {
                       crossAxisCount: 2, // 한 줄에 2개
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
-                      childAspectRatio: 0.8,
+                      childAspectRatio: 1.3,
                     ),
                     itemCount: singerList.length + (singerList.length ~/ adCount),
                     itemBuilder: (context, index) {
@@ -85,13 +88,14 @@ class SingerPage extends StatelessWidget {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Image.network(
-                                "$baseUrl${singer.profileImg}",
-                                height: 130,
-                                fit: BoxFit.cover, // 이미지 꽉 채우기
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset('images/no_image.png', height: 130, fit: BoxFit.cover);
-                                },
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text("${singer.songCount}곡",
+                                    style: const TextStyle(color: Colors.white, fontSize: 14)),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(5.0),
