@@ -1,16 +1,15 @@
-# hello_flutter
+<table align="center" style="border: none; width: 100%; text-align: center;">
+  <tr>
+    <td style="border: none;">
+      <img src="https://github.com/user-attachments/assets/cff2cace-f370-4264-90b6-1cf8f47d3d98" width="100">
+    </td>
+    <td style="border: none;">
+      <h2>J-POP 노래방 번호 조회 어플리케이션</h2>
+    </td>
+  </tr>
+</table>
 
-A new Flutter project.
+<br>
+<br>
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+![그래픽](https://github.com/user-attachments/assets/bc145670-c568-40c6-b1e7-7695168192b8)
