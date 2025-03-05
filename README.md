@@ -4,7 +4,7 @@
       <img src="https://github.com/user-attachments/assets/cff2cace-f370-4264-90b6-1cf8f47d3d98" width="100">
     </td>
     <td style="border: none;">
-      <h2>J-POP 노래방 번호 조회 어플리케이션</h2>
+      <h3>J-POP 노래방 번호 조회 어플리케이션</h2>
     </td>
   </tr>
 </table>
