@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -50,18 +51,45 @@ class LoadSongList {
 
 class SongListPageWithAppBar extends StatelessWidget {
   SongListPageWithAppBar({super.key, required this.title, required this.mode, required this.modeValue}) {
+    Future<List<Song>> baseList;
     if (mode == ListMode.singer) {
-      songList = LoadSongList.loadSingerSongList(modeValue);
+      baseList = LoadSongList.loadSingerSongList(modeValue);
     } else if (mode == ListMode.search) {
-      songList = LoadSongList.loadSearchSongList(modeValue);
+      baseList = LoadSongList.loadSearchSongList(modeValue);
     } else {
-      songList = SongListPage().loadBestSongList();
+      baseList = SongListPage().loadBestSongList();
     }
+    songList = _loadFavorites(baseList);
   }
   final String title;
   final ListMode mode;
   final String modeValue;
   late final Future<List<Song>> songList;
+  List<Song> favoriteSongs = [];
+
+  // 저장된 즐겨찾기 불러오기
+  Future<List<Song>> _loadFavorites(Future<List<Song>> songListFuture) async {
+    final results = await Future.wait([
+      songListFuture,
+      SharedPreferences.getInstance(),
+    ]);
+
+    List<Song> songs = results[0] as List<Song>;
+    SharedPreferences prefs = results[1] as SharedPreferences;
+
+    List<String>? jsonList = prefs.getStringList('favorites');
+
+    if (jsonList != null && jsonList.isNotEmpty) {
+      // 저장된 즐겨찾기 리스트 생성
+      List<Song> favoriteSongs = jsonList.map((item) => Song.fromString(item)).toList();
+
+      // 노래 목록을 돌며 즐겨찾기 여부 표시
+      for (var song in songs) {
+        song.favorite = favoriteSongs.any((fav) => fav.id == song.id);
+      }
+    }
+    return songs;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,9 +113,30 @@ class SongListPageWithAppBar extends StatelessWidget {
   }
 }
 
-
 class SongListPage extends StatelessWidget {
   const SongListPage({super.key});
+
+  // 저장된 즐겨찾기 불러오기
+  _loadFavorites(List<Song> songs) async {
+    final results = await Future.wait([
+      SharedPreferences.getInstance(),
+    ]);
+
+    SharedPreferences prefs = results[0];
+
+    List<String>? jsonList = prefs.getStringList('favorites');
+
+    if (jsonList != null && jsonList.isNotEmpty) {
+      // 저장된 즐겨찾기 리스트 생성
+      List<Song> favoriteSongs = jsonList.map((item) => Song.fromString(item)).toList();
+
+      // 노래 목록을 돌며 즐겨찾기 여부 표시
+      for (var song in songs) {
+        song.favorite = favoriteSongs.any((fav) => fav.id == song.id);
+      }
+    }
+    return songs;
+  }
 
   Future<List<Song>> loadBestSongList() async {
     final url = Uri.parse("$baseUrl:$apiPort/song/chart100");
@@ -101,7 +150,10 @@ class SongListPage extends StatelessWidget {
       Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
       final List<dynamic> jsonData = body['data'];
 
-      return jsonData.map((json) => Song.fromJson(json)).toList();
+      List<Song> songList = jsonData.map((json) => Song.fromJson(json)).toList();
+
+      _loadFavorites(songList);
+      return songList;
     }
     return Future.error("fail:load");
   }
@@ -134,10 +186,37 @@ class SongListWidget extends State<SongListBody> {
   final int adCount = 7;
   bool isSelected = false;
 
-  void toggleIconColor(int songIndex) {
+  Future<void> addFavorite(int songIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    final selectedSong = songList[songIndex];
+
     setState(() {
-      songList[songIndex].favorite = !songList[songIndex].favorite;
+      selectedSong.favorite = !selectedSong.favorite;
     });
+
+    List<String> favoriteJsonList = prefs.getStringList('favorites') ?? [];
+
+    if (selectedSong.favorite) {
+      // 3. 즐겨찾기 추가 시: 객체를 JSON 문자열로 변환하여 리스트에 추가
+      // 중복 체크 (이미 같은 번호의 노래가 있는지 확인)
+      bool isAlreadyIn = favoriteJsonList.any((item) {
+        final s = Song.fromJson(jsonDecode(item));
+        return s.id == selectedSong.id;
+      });
+
+      if (!isAlreadyIn) {
+        favoriteJsonList.add(jsonEncode(selectedSong.toJson()));
+      }
+    } else {
+      // 4. 즐겨찾기 해제 시: 리스트에서 제거
+      favoriteJsonList.removeWhere((item) {
+        final s = Song.fromJson(jsonDecode(item));
+        return s.title == selectedSong.title && s.singer == selectedSong.singer;
+      });
+    }
+
+    // 5. 최종 리스트를 기기에 저장
+    await prefs.setStringList('favorites', favoriteJsonList);
   }
 
   @override
@@ -205,7 +284,7 @@ class SongListWidget extends State<SongListBody> {
                           SizedBox(
                             width: 30,
                             child: GestureDetector(
-                              onTap: () => toggleIconColor(songIndex),  // 아이콘을 클릭하면 색상 변경
+                              onTap: () => addFavorite(songIndex),  // 아이콘을 클릭하면 색상 변경
                               child: Icon(
                                 Icons.favorite,  // 사용할 아이콘
                                 color: song.favorite ? Colors.red : Colors.grey,  // 클릭 여부에 따라 색상 변경

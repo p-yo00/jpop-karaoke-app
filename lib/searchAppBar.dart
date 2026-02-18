@@ -32,7 +32,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: TextField(
           controller: controller,
           decoration: InputDecoration(
-            hintText: '검색어를 입력하세요',
+            hintText: '가수나 노래를 검색해보세요.',
             suffixIcon: IconButton(
               icon: const Icon(Icons.search),
               onPressed: searchSong,

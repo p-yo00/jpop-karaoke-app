@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Song {
   final int id;
   final String title;
@@ -8,14 +10,47 @@ class Song {
   final String tj;
   bool favorite;
 
-  Song(this.originalTitle, this.ky, this.tj, this.singer, this.albumImg, this.favorite, {required this.id, required this.title});
+  Song({
+    required this.id,
+    required this.title,
+    required this.originalTitle,
+    required this.albumImg,
+    required this.singer,
+    required this.ky,
+    required this.tj,
+    this.favorite = false,
+  });
 
   factory Song.fromJson(Map<String, dynamic> json) {
     return Song(
-        json['originalTitle'], json['ky'].toString(), json['tj'].toString(),
-        json['singer'], json['albumImg'], false,
-        id: json['id'],
-        title: json['title']
+      // ?? '' 를 사용하여 데이터가 null일 경우 빈 문자열을 넣어 에러를 방지합니다.
+      id: json['id'] ?? 0,
+      title: json['title'] ?? '제목 없음',
+      originalTitle: json['originalTitle'] ?? '',
+      albumImg: json['albumImg'] ?? '',
+      singer: json['singer'] ?? '아티스트 미상',
+      ky: (json['ky'] ?? '').toString(),
+      tj: (json['tj'] ?? '').toString(),
+      favorite: json['favorite'] ?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'originalTitle': originalTitle,
+      'albumImg': albumImg,
+      'singer': singer,
+      'ky': ky,
+      'tj': tj,
+      'favorite': favorite,
+    };
+  }
+
+  factory Song.fromString(String source) => Song.fromJson(json.decode(source));
+
+  like() {
+    favorite = !favorite;
   }
 }
