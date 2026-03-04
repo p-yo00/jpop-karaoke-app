@@ -33,7 +33,7 @@ class SingerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const adCount = 7;
+    const adCount = 10;
     return Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(8.0),

@@ -183,7 +183,7 @@ class SongListWidget extends State<SongListBody> {
   SongListWidget({required this.songList});
 
   final List<Song> songList;
-  final int adCount = 7;
+  final int adCount = 10;
   bool isSelected = false;
 
   Future<void> addFavorite(int songIndex) async {

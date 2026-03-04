@@ -60,21 +60,15 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomNavigationBar: NavigationBar(
         destinations: [
           NavigationDestination(
-            icon: Badge(
-              child: Icon(Icons.music_note),
-            ),
+            icon: Icon(Icons.music_note),
             label: '인기차트',
           ),
           NavigationDestination(
-            icon: Badge(
-              child: Icon(Icons.album),
-            ),
+            icon: Icon(Icons.album),
             label: '가수별',
           ),
           NavigationDestination(
-            icon: Badge(
-              child: Icon(Icons.star),
-            ),
+            icon: Icon(Icons.star),
             label: 'My Music',
           ),
         ],
