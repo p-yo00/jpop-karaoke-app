@@ -40,7 +40,7 @@ class _MyPageState extends State<MyPage> {
               return const Center(child: Text('즐겨찾기한 노래가 없습니다.'));
             }
             // 4. 최신 데이터가 담긴 snapshot.data를 SongListBody에 전달
-            return SongListBody(songList: favorites);
+            return SongListBody(songList: favorites, mode: ListMode.favorite);
           } else {
             return const Center(child: Text('데이터가 없습니다.'));
           }
