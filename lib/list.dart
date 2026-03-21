@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:hello_flutter/dto/song.dart';
 import 'package:hello_flutter/bannerAd.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 enum ListMode { ranking, singer, search, favorite }
 const String baseUrl = String.fromEnvironment('API_BASE_URL');
@@ -162,6 +163,7 @@ class SongListWidget extends State<SongListBody> {
   late List<Song> songList;
   final int adCount = 10;
   bool isSelected = false;
+  int? expandedIndex;
 
   Future<List<Song>> loadSongList() async {
     if (widget.mode == ListMode.singer) {
@@ -264,84 +266,93 @@ class SongListWidget extends State<SongListBody> {
                     var songIndex = index - ((index) ~/ (adCount+1));
                     var song = songList[songIndex];
 
-                    return InkWell(
-                      onTap: () { // 상세 페이지 현재 미구현
-                        /*Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DetailPage(song: song),
-                        ),
-                      );*/
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        child: Row(
-                          children: [
-                            // 인덱스
-                            SizedBox(
-                              width: 30,
-                              child: Text((songIndex+1).toString(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
-                            ),
-                            // 찜
-                            SizedBox(
-                              width: 30,
-                              child: GestureDetector(
-                                onTap: () => addFavorite(songIndex),  // 아이콘을 클릭하면 색상 변경
-                                child: Icon(
-                                  Icons.favorite,  // 사용할 아이콘
-                                  color: song.favorite ? Colors.red : Colors.grey,  // 클릭 여부에 따라 색상 변경
-                                  size: 20.0,  // 아이콘 크기
+                    return Column(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              if (expandedIndex == songIndex) {
+                                expandedIndex = null;
+                              } else {
+                                expandedIndex = songIndex;
+                              }
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            child: Row(
+                              children: [
+                                // 인덱스
+                                SizedBox(
+                                  width: 30,
+                                  child: Text((songIndex+1).toString(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
                                 ),
-                              ),
-                            ),
-                            // 번호1 (금영)
-                            Expanded(
-                              flex: 2,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    borderRadius: BorderRadius.circular(20),
+                                // 찜
+                                SizedBox(
+                                  width: 30,
+                                  child: GestureDetector(
+                                    onTap: () => addFavorite(songIndex),  // 아이콘을 클릭하면 색상 변경
+                                    child: Icon(
+                                      Icons.favorite,  // 사용할 아이콘
+                                      color: song.favorite ? Colors.red : Colors.grey,  // 클릭 여부에 따라 색상 변경
+                                      size: 20.0,  // 아이콘 크기
+                                    ),
                                   ),
-                                  child: Text(song.ky.toString(),
-                                      style: const TextStyle(color: Colors.white, fontSize: 14)),
                                 ),
-                              ),
-                            ),
-                            // 번호2 (TJ)
-                            Expanded(
-                              flex: 2,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(20),
+                                // 번호1 (금영)
+                                Expanded(
+                                  flex: 2,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(song.ky.toString(),
+                                          style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                    ),
                                   ),
-                                  child: Text(song.tj.toString(),
-                                      style: const TextStyle(color: Colors.white, fontSize: 14)),
                                 ),
-                              ),
+                                // 번호2 (TJ)
+                                Expanded(
+                                  flex: 2,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(song.tj.toString(),
+                                          style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                    ),
+                                  ),
+                                ),
+                                // 제목 & 가수 (2줄)
+                                Expanded(
+                                  flex: 4,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      AutoSizeText(song.title,
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                        maxLines: 2,),
+                                      AutoSizeText(song.singer,
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                        maxLines: 1,),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            // 제목 & 가수 (2줄)
-                            Expanded(
-                              flex: 4,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  AutoSizeText(song.title,
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                    maxLines: 2,),
-                                  AutoSizeText(song.singer,
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                    maxLines: 1,),
-                                ],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        if (expandedIndex == songIndex && song.youtubeUrl.isNotEmpty)
+                          YoutubeWebView(
+                            youtubeUrl: song.youtubeUrl,
+                          ),
+                      ]
                     );
                   },
                 ),
@@ -368,4 +379,37 @@ class SongListBody extends StatefulWidget {
 
   @override
   SongListWidget createState() => SongListWidget(songList: songList);
+}
+
+class YoutubeWebView extends StatefulWidget {
+  final String youtubeUrl;
+
+  const YoutubeWebView({super.key, required this.youtubeUrl});
+
+  @override
+  State<YoutubeWebView> createState() => _YoutubeWebViewState();
+}
+
+class _YoutubeWebViewState extends State<YoutubeWebView> {
+
+  late final WebViewController controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(
+        Uri.parse(widget.youtubeUrl),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 220,
+      child: WebViewWidget(controller: controller),
+    );
+  }
 }
