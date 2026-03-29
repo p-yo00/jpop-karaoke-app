@@ -77,7 +77,7 @@ class LoadSongList {
       SharedPreferences.getInstance(),
     ]);
 
-    SharedPreferences prefs = results[0] as SharedPreferences;
+    SharedPreferences prefs = results[0];
 
     List<String>? jsonList = prefs.getStringList('favorites');
 
@@ -355,7 +355,7 @@ class SongListWidget extends State<SongListBody> {
 }
 
 class SongListBody extends StatefulWidget {
-  SongListBody({
+  const SongListBody({
     super.key,
     required this.songList,
     this.mode = ListMode.ranking, // 기본값은 랭킹
