@@ -4,7 +4,7 @@ import 'package:hello_flutter/util/ad_helper.dart';
 
 class AdWidgetContainer extends StatefulWidget {
   final double adHeight;
-  AdWidgetContainer({super.key, required this.adHeight});
+  const AdWidgetContainer({super.key, required this.adHeight});
 
   @override
   _AdWidgetContainerState createState() => _AdWidgetContainerState(adHeight: adHeight);
