@@ -8,6 +8,7 @@ class Song {
   final String singer;
   final String ky;
   final String tj;
+  String youtubeUrl;
   bool favorite;
 
   Song({
@@ -18,6 +19,7 @@ class Song {
     required this.singer,
     required this.ky,
     required this.tj,
+    this.youtubeUrl = '',
     this.favorite = false,
   });
 
@@ -31,6 +33,7 @@ class Song {
       singer: json['singer'] ?? '아티스트 미상',
       ky: (json['ky'] ?? '').toString(),
       tj: (json['tj'] ?? '').toString(),
+      youtubeUrl: json['youtubeUrl'] ?? '',
       favorite: json['favorite'] ?? false,
     );
   }
@@ -44,6 +47,7 @@ class Song {
       'singer': singer,
       'ky': ky,
       'tj': tj,
+      'youtubeUrl': youtubeUrl,
       'favorite': favorite,
     };
   }
