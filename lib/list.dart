@@ -164,6 +164,27 @@ class SongListWidget extends State<SongListBody> {
   final int adCount = 10;
   bool isSelected = false;
   int? expandedIndex;
+  bool isYoutubeOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  // 설정 불러오기 함수
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool currentSetting = prefs.getBool('isYoutubeOn') ?? true;
+
+    // 현재 상태와 다를 때만 setState 호출 (무한 루프 방지)
+    if (isYoutubeOn != currentSetting) {
+      setState(() {
+        isYoutubeOn = currentSetting;
+        if (!isYoutubeOn) expandedIndex = null;
+      });
+    }
+  }
 
   Future<List<Song>> loadSongList() async {
     if (widget.mode == ListMode.singer) {
@@ -270,13 +291,15 @@ class SongListWidget extends State<SongListBody> {
                       children: [
                         InkWell(
                           onTap: () {
-                            setState(() {
-                              if (expandedIndex == songIndex) {
-                                expandedIndex = null;
-                              } else {
-                                expandedIndex = songIndex;
-                              }
-                            });
+                            if (isYoutubeOn) {
+                              setState(() {
+                                if (expandedIndex == songIndex) {
+                                  expandedIndex = null;
+                                } else {
+                                  expandedIndex = songIndex;
+                                }
+                              });
+                            }
                           },
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -365,7 +388,7 @@ class SongListWidget extends State<SongListBody> {
                             ),
                           ),
                         ),
-                        if (expandedIndex == songIndex && song.youtubeUrl.isNotEmpty)
+                        if (isYoutubeOn && expandedIndex == songIndex && song.youtubeUrl.isNotEmpty)
                           YoutubeWebView(
                             youtubeUrl: song.youtubeUrl,
                           ),
