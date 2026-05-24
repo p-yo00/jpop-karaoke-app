@@ -33,7 +33,7 @@ class SingerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const adCount = 10;
+    const adCount = 12;
     return Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -43,9 +43,6 @@ class SingerPage extends StatelessWidget {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
-                  print("debug==============");
-                  print(snapshot.error);
-                  print("debug==============");
                   return Center(child: Text('불러오는데 실패했습니다.'));
                 } else if (snapshot.hasData) {
                   final List<Singer> singerList = snapshot.data!;
