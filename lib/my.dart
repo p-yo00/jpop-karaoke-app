@@ -15,17 +15,7 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
-  // 직접 등록 후 화면을 새로고침하기 위한 Key
-  Key _futureBuilderKey = UniqueKey();
-
-  // 2. 데이터를 불러오는 함수 (기존 로직 유지)
-  Future<List<Song>> _loadFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    List<String>? jsonList = prefs.getStringList('favorites') ?? [];
-
-    return jsonList.map((item) => Song.fromString(item)).toList();
-  }
+  final GlobalKey<SongListWidget> _songListKey = GlobalKey<SongListWidget>();
 
   // 2. 직접 노래 등록 다이얼로그
   void _showAddCustomSongDialog() {
@@ -114,9 +104,6 @@ class _MyPageState extends State<MyPage> {
                   tjController.text,
                 );
                 Navigator.pop(context);
-                setState(() {
-                  _futureBuilderKey = UniqueKey();
-                });
               } else {
                 // 제목/가수 미입력 시 안내 (선택사항)
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -167,6 +154,7 @@ class _MyPageState extends State<MyPage> {
         });
 
     await prefs.setStringList('favorites', favorites);
+    _songListKey.currentState?.handleRefresh();
   }
 
   @override
@@ -177,26 +165,7 @@ class _MyPageState extends State<MyPage> {
         onPressed: _showAddCustomSongDialog,
         child: const Icon(Icons.add),
       ),
-      body: FutureBuilder<List<Song>>(
-        key: _futureBuilderKey,
-        future: _loadFavorites(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('불러오는데 실패했습니다.'));
-          } else if (snapshot.hasData) {
-            final favorites = snapshot.data!;
-            if (favorites.isEmpty) {
-              return const Center(child: Text('즐겨찾기한 노래가 없습니다.'));
-            }
-            // 4. 최신 데이터가 담긴 snapshot.data를 SongListBody에 전달
-            return SongListBody(songList: favorites, mode: ListMode.favorite);
-          } else {
-            return const Center(child: Text('데이터가 없습니다.'));
-          }
-        },
-      ),
+      body: SongListBody(key: _songListKey, mode: ListMode.favorite)
     );
   }
 }

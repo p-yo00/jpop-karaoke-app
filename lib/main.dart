@@ -141,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
         destinations: [
           NavigationDestination(
             icon: Icon(Icons.music_note),
-            label: '인기차트',
+            label: '탐색',
           ),
           NavigationDestination(
             icon: Icon(Icons.album),

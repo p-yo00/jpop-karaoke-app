@@ -5,18 +5,19 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/bannerAd.dart';
 import 'package:hello_flutter/dto/song.dart';
+import 'package:hello_flutter/dto/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-enum ListMode { ranking, singer, search, favorite }
+enum ListMode { collection, singer, search, favorite }
 const String baseUrl = String.fromEnvironment('API_BASE_URL');
 const String apiPort = "8080";
 
 class LoadSongList {
 
-  static Future<List<Song>> loadBestSongList() async {
-    final url = Uri.parse("$baseUrl:$apiPort/song/chart100");
+  static Future<List<Song>> loadCollectionSongList(int id) async {
+    final url = Uri.parse("$baseUrl:$apiPort/collections/$id");
 
     final response = await http.get(url).timeout(
       Duration(seconds: 30),
@@ -72,6 +73,14 @@ class LoadSongList {
     return Future.error("fail:load");
   }
 
+  static Future<List<Song>> loadFavoriteSongs() async {
+      final prefs = await SharedPreferences.getInstance();
+
+      List<String>? jsonList = prefs.getStringList('favorites') ?? [];
+
+      return jsonList.map((item) => Song.fromString(item)).toList();
+  }
+
   // 저장된 즐겨찾기 불러오기
   static Future<List<Song>> syncFavorites(List<Song> songs) async {
     final results = await Future.wait([
@@ -96,39 +105,17 @@ class LoadSongList {
 }
 
 class SongListPageWithAppBar extends StatelessWidget {
-  SongListPageWithAppBar({super.key, required this.title, required this.mode, required this.modeValue}) {
-    if (mode == ListMode.singer) {
-      songList = LoadSongList.loadSingerSongList(modeValue);
-    } else if (mode == ListMode.search) {
-      songList = LoadSongList.loadSearchSongList(modeValue);
-    } else {
-      songList = LoadSongList.loadBestSongList();
-    }
-  }
   final String title;
   final ListMode mode;
   final String modeValue;
-  late final Future<List<Song>> songList;
-  List<Song> favoriteSongs = [];
+
+  const SongListPageWithAppBar({super.key, required this.title, required this.mode, required this.modeValue});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: FutureBuilder<List<Song>>(
-            future: songList, // API 호출 함수 연결
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return Center(child: Text('불러오는데 실패했습니다.'));
-              } else if (snapshot.hasData) {
-                return SongListBody(songList: snapshot.data!, mode: mode, modeValue: modeValue);
-              } else {
-                return Center(child: Text('불러오는데 실패했습니다.'));
-              }
-            }
-        )
+      appBar: AppBar(title: Text(title)),
+      body: SongListBody(mode: mode, modeValue: modeValue),
     );
   }
 }
@@ -139,36 +126,31 @@ class SongListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<List<Song>>(
-        future: LoadSongList.loadBestSongList(), // API 호출 함수 연결
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('불러오는데 실패했습니다.(1)'));
-          } else if (snapshot.hasData) {
-            return SongListBody(songList: snapshot.data!, mode: ListMode.ranking);
-          } else {
-            return Center(child: Text('불러오는데 실패했습니다.(2)'));
-          }
-        }
-      )
+      body: SongListBody(mode: ListMode.collection),
     );
   }
 }
 
 class SongListWidget extends State<SongListBody> {
-  SongListWidget({required this.songList});
-
-  late List<Song> songList;
+  List<Song> songList = [];
+  List<Collection> collectionList = [];
   final int adCount = 12;
   bool isSelected = false;
   int? expandedIndex;
   bool isYoutubeOn = false;
+  bool isLoading = false;
+  bool isCategoryExpanded = true;
 
   @override
   void initState() {
     super.initState();
+
+    if (widget.mode == ListMode.collection) {
+      _loadCollections();
+    } else {
+      handleRefresh();
+    }
+
     _loadSettings();
   }
 
@@ -186,6 +168,34 @@ class SongListWidget extends State<SongListBody> {
     }
   }
 
+  // 컬렉션 조회
+  Future<void> _loadCollections() async {
+    final url = Uri.parse("$baseUrl:$apiPort/collections");
+    final response = await http.get(url).timeout(
+      Duration(seconds: 30),
+      onTimeout: () => throw TimeoutException("요청 시간이 초과되었습니다."),
+    );
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
+      final List<dynamic> jsonData = body['data'];
+
+      final collections =
+      jsonData.map((json) => Collection.fromJson(json)).toList();
+
+      setState(() {
+        collectionList = collections;
+        if (collectionList.isNotEmpty) {
+          widget.modeValue = collectionList[0].id;
+          handleRefresh();
+        }
+      });
+
+      return;
+    }
+    return Future.error("fail:load");
+  }
+
   Future<void> _updateSavedOrder() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -198,24 +208,36 @@ class SongListWidget extends State<SongListBody> {
 
   Future<List<Song>> loadSongList() async {
     if (widget.mode == ListMode.singer) {
-      songList = await LoadSongList.loadSingerSongList(widget.modeValue);
+      return await LoadSongList.loadSingerSongList(widget.modeValue as String);
     } else if (widget.mode == ListMode.search) {
-      songList = await LoadSongList.loadSearchSongList(widget.modeValue);
-    } else {
-      songList = await LoadSongList.loadBestSongList();
+      return await LoadSongList.loadSearchSongList(widget.modeValue as String);
+    } else if (widget.mode == ListMode.collection) {
+      return await LoadSongList.loadCollectionSongList(widget.modeValue as int);
+    } else if (widget.mode == ListMode.favorite) {
+      return await LoadSongList.loadFavoriteSongs();
     }
     return songList;
   }
 
-  Future<void> _handleRefresh() async {
-    if (widget.mode == ListMode.favorite) {
-      return;
-    }
-    List<Song> freshSongList = await loadSongList();
-
+  Future<void> handleRefresh() async {
     setState(() {
-      songList = freshSongList;
+      isLoading = true;
+      songList = []; // 이전 리스트를 비워줘야 로딩바가 확실히 보임
     });
+
+    try {
+      List<Song> freshSongList = await loadSongList();
+      setState(() {
+        songList = freshSongList;
+      });
+    } catch (e) {
+      print("로딩 에러: $e");
+    } finally {
+      // 2. 데이터 로딩이 끝나면 로딩바 제거
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Widget _buildSongRow(int songIndex, Song song) {
@@ -379,20 +401,94 @@ class SongListWidget extends State<SongListBody> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) return const Center(child: CircularProgressIndicator());
+
     return Scaffold(
       body: Column(
         children: [
+          // 컬렉션 모드일 때 상단 카테고리 선택창 노출
+          if (widget.mode == ListMode.collection) ...[
+            // 1. 카테고리 리스트 (애니메이션 효과)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: isCategoryExpanded ? 70 : 0, // 닫히면 높이가 0이 됨
+              child: isCategoryExpanded
+                  ? ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: collectionList.length,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                itemBuilder: (context, index) {
+                  final cat = collectionList[index];
+                  final isSelected = widget.modeValue == cat.id;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        widget.modeValue = cat.id;
+                        handleRefresh();
+                      });
+                    },
+                    child: Container(
+                      width: 110,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        color: Colors.grey,
+                        image: cat.imageUrl != null ? DecorationImage(
+                          image: NetworkImage(cat.imageUrl!),
+                          fit: BoxFit.cover,
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withOpacity(isSelected ? 0.2 : 0.5),
+                            BlendMode.darken,
+                          ),
+                        ) : null,
+                        border: isSelected ? Border.all(color: Colors.blue, width: 3) : null,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(cat.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              )
+                  : const SizedBox.shrink(),
+            ),
+            // 2. 접기/펴기 버튼
+            GestureDetector(
+              onTap: () => setState(() => isCategoryExpanded = !isCategoryExpanded),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                color: Colors.grey[200],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(isCategoryExpanded ? "카테고리 접기 " : "카테고리 펼치기 ",
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    Icon(isCategoryExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        size: 14, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
           // 1. 고정 헤더 영역
           Container(
             padding: const EdgeInsets.all(10),
             color: Colors.grey[300],
             child: Row(
               children: [
-                // [수정] const 제거 및 모드에 따른 텍스트 변경
                 SizedBox(
                   width: 30,
                   child: Text(
-                    widget.mode == ListMode.favorite ? "순서" : "순위",
+                    widget.mode == ListMode.collection ? "순위" : "순서",
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -408,39 +504,27 @@ class SongListWidget extends State<SongListBody> {
           // 2. 리스트 영역
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _handleRefresh,
-              // [핵심] 마이페이지(favorite)일 때만 ReorderableListView 사용
+              onRefresh: handleRefresh,
               child: widget.mode == ListMode.favorite
                   ? ReorderableListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: songList.length,
-                onReorder: (oldIndex, newIndex) async {
+                onReorder: (oldIndex, newIndex) {
                   setState(() {
                     if (newIndex > oldIndex) newIndex -= 1;
-                    final Song item = songList.removeAt(oldIndex);
+                    final item = songList.removeAt(oldIndex);
                     songList.insert(newIndex, item);
                   });
-                  // 순서 변경 후 로컬 DB(SharedPreferences) 업데이트
-                  await _updateSavedOrder();
+                  _updateSavedOrder();
                 },
-                itemBuilder: (context, index) {
-                  return _buildSongRow(index, songList[index]);
-                },
+                itemBuilder: (context, index) => _buildSongRow(index, songList[index]),
               )
                   : ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                // 일반 리스트는 광고 포함 개수 계산
                 itemCount: songList.length + (songList.length ~/ adCount),
                 itemBuilder: (context, index) {
-                  // 광고 배치 로직
                   if ((index + 1) % (adCount + 1) == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: AdWidgetContainer(adHeight: -1),
-                    );
+                    return AdWidgetContainer(adHeight: -1);
                   }
-                  // 광고 제외한 실제 노래 인덱스 계산
-                  var songIndex = index - ((index) ~/ (adCount + 1));
+                  int songIndex = index - (index ~/ (adCount + 1));
                   return _buildSongRow(songIndex, songList[songIndex]);
                 },
               ),
@@ -453,19 +537,13 @@ class SongListWidget extends State<SongListBody> {
 }
 
 class SongListBody extends StatefulWidget {
-  const SongListBody({
-    super.key,
-    required this.songList,
-    this.mode = ListMode.ranking, // 기본값은 랭킹
-    this.modeValue = ""
-  });
-
-  final List<Song> songList;
   final ListMode mode;
-  final String modeValue;
+  Object? modeValue;
+
+  SongListBody({super.key, required this.mode, this.modeValue});
 
   @override
-  SongListWidget createState() => SongListWidget(songList: songList);
+  State<SongListBody> createState() => SongListWidget();
 }
 
 class YoutubeWebView extends StatefulWidget {

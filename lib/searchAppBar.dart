@@ -10,7 +10,6 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     void searchSong() {
       String query = controller.text;
-      print(query);
       if (query.isEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text("검색어를 입력해주세요.")));
