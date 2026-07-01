@@ -9,6 +9,7 @@ import 'package:hello_flutter/dto/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+// 몇곡 넣었는지, 어떤 곡 넣었는지 미리보기, 위치 변경(order 값 따로)
 
 enum ListMode { collection, singer, search, favorite }
 const String baseUrl = String.fromEnvironment('API_BASE_URL');
@@ -207,6 +208,8 @@ class SongListWidget extends State<SongListBody> {
   }
 
   Future<List<Song>> loadSongList() async {
+    final prefs = await SharedPreferences.getInstance();
+
     if (widget.mode == ListMode.singer) {
       return await LoadSongList.loadSingerSongList(widget.modeValue as String);
     } else if (widget.mode == ListMode.search) {
@@ -214,7 +217,12 @@ class SongListWidget extends State<SongListBody> {
     } else if (widget.mode == ListMode.collection) {
       return await LoadSongList.loadCollectionSongList(widget.modeValue as int);
     } else if (widget.mode == ListMode.favorite) {
-      return await LoadSongList.loadFavoriteSongs();
+      String key = widget.folderName != null
+          ? 'folder_${widget.folderName}'
+          : 'favorites';
+
+      List<String> jsonList = prefs.getStringList(key) ?? [];
+      return jsonList.map((item) => Song.fromJson(jsonDecode(item))).toList();
     }
     return songList;
   }
@@ -271,7 +279,7 @@ class SongListWidget extends State<SongListBody> {
                   SizedBox(
                     width: 30,
                     child: GestureDetector(
-                      onTap: () => addFavorite(songIndex), // 아이콘을 클릭하면 색상 변경
+                      onTap: () => toggleFavorite(songIndex), // 아이콘을 클릭하면 색상 변경
                       child: Icon(
                         Icons.favorite, // 사용할 아이콘
                         color: song.favorite ? Colors.red : Colors.grey,
@@ -361,42 +369,79 @@ class SongListWidget extends State<SongListBody> {
     );
   }
 
-  Future<void> addFavorite(int songIndex) async {
+  Future<void> toggleFavorite(int songIndex) async {
     final prefs = await SharedPreferences.getInstance();
     final selectedSong = songList[songIndex];
 
-    setState(() {
-      selectedSong.favorite = !selectedSong.favorite;
-    });
-
-    List<String> favoriteJsonList = prefs.getStringList('favorites') ?? [];
-
+    // 1. 이미 즐겨찾기 된 상태라면? (삭제 로직)
     if (selectedSong.favorite) {
-      // 추가 로직: 중복 체크 후 삽입
-      bool isAlreadyIn = favoriteJsonList.any((item) {
-        final s = Song.fromJson(jsonDecode(item));
-        return s.id == selectedSong.id;
-      });
-
-      if (!isAlreadyIn) {
-        favoriteJsonList.add(jsonEncode(selectedSong.toJson()));
+      // 어느 폴더에 들어있는지 모르므로 모든 폴더에서 해당 노래 삭제
+      List<String> folders = prefs.getStringList('folder_list') ?? ['기본 폴더'];
+      for (String folder in folders) {
+        String key = 'folder_$folder';
+        List<String> songs = prefs.getStringList(key) ?? [];
+        songs.removeWhere((item) => Song.fromJson(jsonDecode(item)).id == selectedSong.id);
+        await prefs.setStringList(key, songs);
       }
-    } else {
-      // 삭제 로직: ID 기준으로 제거
-      favoriteJsonList.removeWhere((item) {
-        final s = Song.fromJson(jsonDecode(item));
-        return s.id == selectedSong.id;
-      });
 
       setState(() {
+        selectedSong.favorite = false;
+        // 즐겨찾기 화면(MyPage 폴더 안)이라면 리스트에서 즉시 제거
         if (widget.mode == ListMode.favorite) {
           songList.removeAt(songIndex);
         }
       });
-    }
 
-    // 통합된 리스트 저장
-    await prefs.setStringList('favorites', favoriteJsonList);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("즐겨찾기에서 제거되었습니다.")),
+      );
+    }
+    // 2. 즐겨찾기가 아닌 상태라면? (추가 로직 - 폴더 선택)
+    else {
+      List<String> folders = prefs.getStringList('folder_list') ?? ['기본 폴더'];
+
+      String? selectedFolder = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("폴더 선택"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: folders.length,
+              itemBuilder: (context, index) => ListTile(
+                leading: const Icon(Icons.folder, color: Colors.blue),
+                title: Text(folders[index]),
+                onTap: () => Navigator.pop(context, folders[index]),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
+          ],
+        ),
+      );
+
+      if (selectedFolder != null) {
+        String key = 'folder_$selectedFolder';
+        List<String> folderSongs = prefs.getStringList(key) ?? [];
+
+        setState(() {
+          selectedSong.favorite = true;
+        });
+
+        // 중복 체크 후 저장
+        String songJson = jsonEncode(selectedSong.toJson());
+        if (!folderSongs.contains(songJson)) {
+          folderSongs.add(songJson);
+          await prefs.setStringList(key, folderSongs);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("'$selectedFolder' 폴더에 추가되었습니다.")),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -539,8 +584,9 @@ class SongListWidget extends State<SongListBody> {
 class SongListBody extends StatefulWidget {
   final ListMode mode;
   Object? modeValue;
+  final String? folderName;
 
-  SongListBody({super.key, required this.mode, this.modeValue});
+  SongListBody({super.key, required this.mode, this.modeValue, this.folderName});
 
   @override
   State<SongListBody> createState() => SongListWidget();
