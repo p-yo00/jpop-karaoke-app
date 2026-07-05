@@ -84,22 +84,40 @@ class LoadSongList {
 
   // 저장된 즐겨찾기 불러오기
   static Future<List<Song>> syncFavorites(List<Song> songs) async {
-    final results = await Future.wait([
-      SharedPreferences.getInstance(),
-    ]);
+    final prefs = await SharedPreferences.getInstance();
 
-    SharedPreferences prefs = results[0];
+    // 1. 폴더 목록 가져오기
+    List<String> folders = prefs.getStringList('folder_list') ?? ['기본 폴더'];
 
-    List<String>? jsonList = prefs.getStringList('favorites');
+    // 2. 모든 폴더에 들어있는 노래들의 ID를 수집 (중복 제거를 위해 Set 사용)
+    Set<int> favoriteIds = {};
 
-    if (jsonList != null && jsonList.isNotEmpty) {
-      // 저장된 즐겨찾기 리스트 생성
-      List<Song> favoriteSongs = jsonList.map((item) => Song.fromString(item)).toList();
-
-      // 노래 목록을 돌며 즐겨찾기 여부 표시
-      for (var song in songs) {
-        song.favorite = favoriteSongs.any((fav) => fav.id == song.id);
+    // 각 폴더를 돌며 노래 ID 추출
+    for (String folderName in folders) {
+      List<String> folderSongs = prefs.getStringList('folder_$folderName') ?? [];
+      for (String songJson in folderSongs) {
+        try {
+          final decoded = jsonDecode(songJson);
+          // Song.fromJson 또는 직접 ID 추출
+          favoriteIds.add(decoded['id']);
+        } catch (e) {
+          print("ID 추출 에러: $e");
+        }
       }
+    }
+
+    // 3. (호환성 유지) 혹시 마이그레이션 전의 예전 'favorites' 키에 데이터가 있다면 그것도 포함
+    List<String> oldFavorites = prefs.getStringList('favorites') ?? [];
+    for (String songJson in oldFavorites) {
+      try {
+        final decoded = jsonDecode(songJson);
+        favoriteIds.add(decoded['id']);
+      } catch (e) {}
+    }
+
+    // 4. 현재 리스트의 노래들이 수집된 ID 목록에 있는지 확인하여 favorite 상태 업데이트
+    for (var song in songs) {
+      song.favorite = favoriteIds.contains(song.id);
     }
     return songs;
   }
@@ -375,7 +393,7 @@ class SongListWidget extends State<SongListBody> {
 
     // 1. 이미 즐겨찾기 된 상태라면? (삭제 로직)
     if (selectedSong.favorite) {
-      // 어느 폴더에 들어있는지 모르므로 모든 폴더에서 해당 노래 삭제
+      // 모든 폴더에서 해당 노래 삭제 로직 (기존과 동일)
       List<String> folders = prefs.getStringList('folder_list') ?? ['기본 폴더'];
       for (String folder in folders) {
         String key = 'folder_$folder';
@@ -386,7 +404,6 @@ class SongListWidget extends State<SongListBody> {
 
       setState(() {
         selectedSong.favorite = false;
-        // 즐겨찾기 화면(MyPage 폴더 안)이라면 리스트에서 즉시 제거
         if (widget.mode == ListMode.favorite) {
           songList.removeAt(songIndex);
         }
@@ -400,6 +417,10 @@ class SongListWidget extends State<SongListBody> {
     else {
       List<String> folders = prefs.getStringList('folder_list') ?? ['기본 폴더'];
 
+      // --- 추가: 저장된 색상 맵 가져오기 ---
+      final String? colorMapJson = prefs.getString('folder_colors');
+      Map<String, dynamic> colorMap = colorMapJson != null ? jsonDecode(colorMapJson) : {};
+
       String? selectedFolder = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
@@ -409,11 +430,19 @@ class SongListWidget extends State<SongListBody> {
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: folders.length,
-              itemBuilder: (context, index) => ListTile(
-                leading: const Icon(Icons.folder, color: Colors.blue),
-                title: Text(folders[index]),
-                onTap: () => Navigator.pop(context, folders[index]),
-              ),
+              itemBuilder: (context, index) {
+                final folderName = folders[index];
+                // 저장된 색상이 있으면 Color로 변환, 없으면 기본 amber 색상 사용
+                final folderColor = colorMap.containsKey(folderName)
+                    ? Color(colorMap[folderName])
+                    : Colors.amber;
+
+                return ListTile(
+                  leading: Icon(Icons.folder, color: folderColor), // 색상 적용
+                  title: Text(folderName),
+                  onTap: () => Navigator.pop(context, folderName),
+                );
+              },
             ),
           ),
           actions: [
@@ -430,7 +459,6 @@ class SongListWidget extends State<SongListBody> {
           selectedSong.favorite = true;
         });
 
-        // 중복 체크 후 저장
         String songJson = jsonEncode(selectedSong.toJson());
         if (!folderSongs.contains(songJson)) {
           folderSongs.add(songJson);
