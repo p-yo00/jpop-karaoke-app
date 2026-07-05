@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:hello_flutter/bannerAd.dart';
 import 'package:hello_flutter/dto/song.dart';
 import 'package:hello_flutter/dto/collection.dart';
+import 'package:hello_flutter/util/eventSender.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -266,6 +267,66 @@ class SongListWidget extends State<SongListBody> {
     }
   }
 
+  Future<void> _requestSongApi() async {
+    final query = widget.modeValue?.toString() ?? "";
+
+    // 1. 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      EventSender.sendEvent(eventType: "REQUEST", payload: {
+        "keyword": query,
+        "size": songList.length,
+        "songIds": songList.map((song) => song.id).toList(),
+      });
+
+      Navigator.pop(context); // 로딩 닫기
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("'$query' 노래 추가 신청이 완료되었습니다.")),
+      );
+    } catch (e) {
+      Navigator.pop(context); // 로딩 닫기
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("오류가 발생했습니다. 잠시 후 다시 시도해주세요.")),
+      );
+    }
+  }
+
+  Widget _buildNoSearchResultView() {
+    final query = widget.modeValue?.toString() ?? "";
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.search_off, size: 80, color: Colors.grey),
+          const SizedBox(height: 20),
+          Text(
+            "'$query'에 대한 검색 결과가 없습니다.",
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+          const SizedBox(height: 10),
+          const Text("찾으시는 노래가 없나요?"),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _requestSongApi,
+            icon: const Icon(Icons.add_comment),
+            label: const Text("이 노래 추가 신청하기"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSongRow(int songIndex, Song song) {
     return Column(
         key: ValueKey("song_row_${song.id}"),
@@ -384,6 +445,32 @@ class SongListWidget extends State<SongListBody> {
               youtubeUrl: song.youtubeUrl,
             ),
         ]
+    );
+  }
+
+  Widget _buildRequestFooter() {
+    return Column(
+      children: [
+        const Divider(), // 구분선
+        const SizedBox(height: 20),
+        const Text(
+          "찾으시는 노래가 리스트에 없나요?",
+          style: TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton.icon(
+          onPressed: _requestSongApi,
+          icon: const Icon(Icons.add_comment, size: 18),
+          label: const Text("노래 추가 신청하기"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey[200],
+            foregroundColor: Colors.black87,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -578,7 +665,11 @@ class SongListWidget extends State<SongListBody> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: handleRefresh,
-              child: widget.mode == ListMode.favorite
+              child: songList.isEmpty && !isLoading // 데이터가 없고 로딩 중이 아닐 때
+                  ? (widget.mode == ListMode.search
+                  ? _buildNoSearchResultView() // 검색 모드면 신청 뷰
+                  : const Center(child: Text("데이터가 없습니다."))) // 그 외 모드
+                  : widget.mode == ListMode.favorite
                   ? ReorderableListView.builder(
                 itemCount: songList.length,
                 onReorder: (oldIndex, newIndex) {
@@ -592,11 +683,26 @@ class SongListWidget extends State<SongListBody> {
                 itemBuilder: (context, index) => _buildSongRow(index, songList[index]),
               )
                   : ListView.builder(
-                itemCount: songList.length + (songList.length ~/ adCount),
+                itemCount: songList.length + (songList.length ~/ adCount) + 1,
                 itemBuilder: (context, index) {
+                  // 1. 맨 마지막 항목인지 확인
+                  if (index == songList.length + (songList.length ~/ adCount)) {
+                    // 검색 모드일 때만 맨 아래에 신청 버튼 표시
+                    if (widget.mode == ListMode.search) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: _buildRequestFooter(), // 하단 신청 버튼 위젯
+                      );
+                    }
+                    return const SizedBox(height: 20); // 검색 모드 아니면 여백만
+                  }
+
+                  // 2. 광고 위젯 처리
                   if ((index + 1) % (adCount + 1) == 0) {
                     return AdWidgetContainer(adHeight: -1);
                   }
+
+                  // 3. 일반 노래 행 처리
                   int songIndex = index - (index ~/ (adCount + 1));
                   return _buildSongRow(songIndex, songList[songIndex]);
                 },
