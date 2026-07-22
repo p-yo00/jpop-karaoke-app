@@ -26,7 +26,9 @@ class MyPage extends StatefulWidget {
 
 class _MyPageState extends State<MyPage> {
   bool isReorderMode = false; // 순서 편집 모드 여부
+  bool isDeleteMode = false; // 폴더 삭제 모드 여부
   List<String> folderList = []; // 로컬에서 관리할 폴더 리스트
+  Set<String> selectedFolders = {}; // 삭제할 폴더 선택 상태
 
   void _onReorder(int oldIndex, int newIndex) async {
     setState(() {
@@ -45,6 +47,83 @@ class _MyPageState extends State<MyPage> {
   Future<List<String>> _getFolderSongs(String folderName) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList('folder_$folderName') ?? [];
+  }
+
+  void _enterDeleteMode() {
+    setState(() {
+      isReorderMode = false;
+      isDeleteMode = true;
+      selectedFolders.clear();
+    });
+  }
+
+  void _exitDeleteMode() {
+    setState(() {
+      isDeleteMode = false;
+      selectedFolders.clear();
+    });
+  }
+
+  void _toggleFolderSelection(String folderName) {
+    setState(() {
+      if (selectedFolders.contains(folderName)) {
+        selectedFolders.remove(folderName);
+      } else {
+        selectedFolders.add(folderName);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedFolders() async {
+    if (selectedFolders.isEmpty) return;
+
+    final namesToDelete = selectedFolders.toList();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('폴더 삭제'),
+        content: Text('${namesToDelete.length}개의 폴더를 삭제하면 안에 있는 노래도 모두 사라집니다. 계속할까요?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final updatedFolders = List<String>.from(folderList)
+      ..removeWhere(namesToDelete.contains);
+
+    for (final folderName in namesToDelete) {
+      await prefs.remove('folder_$folderName');
+    }
+
+    await prefs.setStringList('folder_list', updatedFolders);
+
+    final colorMapJson = prefs.getString('folder_colors');
+    if (colorMapJson != null) {
+      final colorMap = jsonDecode(colorMapJson) as Map<String, dynamic>;
+      for (final folderName in namesToDelete) {
+        colorMap.remove(folderName);
+      }
+      if (colorMap.isEmpty) {
+        await prefs.remove('folder_colors');
+      } else {
+        await prefs.setString('folder_colors', jsonEncode(colorMap));
+      }
+    }
+
+    setState(() {
+      folderList = updatedFolders;
+      selectedFolders.clear();
+      isDeleteMode = false;
+    });
   }
 
   // 폴더 클릭 시 이동하는 코드 예시
@@ -412,17 +491,78 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
+  Widget _buildDeleteModeList(List<String> folders) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(10),
+      itemCount: folders.length,
+      itemBuilder: (context, index) {
+        final folder = folders[index];
+        final isSelected = selectedFolders.contains(folder);
+
+        return FutureBuilder<Color>(
+          future: _getFolderColor(folder),
+          builder: (context, colorSnapshot) {
+            final folderColor = colorSnapshot.data ?? Colors.amber;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: Checkbox(
+                  value: isSelected,
+                  activeColor: Colors.redAccent,
+                  onChanged: (_) => _toggleFolderSelection(folder),
+                ),
+                title: Text(folder, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('삭제할 폴더를 선택하세요', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                trailing: Icon(Icons.folder, color: folderColor),
+                tileColor: isSelected ? Colors.red[50] : Colors.grey[50],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                onTap: () => _toggleFolderSelection(folder),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("내 보관함"),
+        title: Text(isDeleteMode ? '폴더 삭제' : '내 보관함'),
         actions: [
-          // 순서 변경 모드 토글 버튼
+          if (isDeleteMode)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _exitDeleteMode,
+            )
+          else
+            IconButton(
+              icon: Icon(isReorderMode ? Icons.check_circle : Icons.reorder),
+              color: isReorderMode ? Colors.blue : Colors.black,
+              onPressed: () {
+                setState(() {
+                  isReorderMode = !isReorderMode;
+                  isDeleteMode = false;
+                });
+              },
+            ),
           IconButton(
-            icon: Icon(isReorderMode ? Icons.check_circle : Icons.reorder),
-            color: isReorderMode ? Colors.blue : Colors.black,
-            onPressed: () => setState(() => isReorderMode = !isReorderMode),
+            icon: Icon(isDeleteMode ? Icons.delete_forever : Icons.delete_outline),
+            color: isDeleteMode ? Colors.red : Colors.black,
+            onPressed: () {
+              setState(() {
+                if (isDeleteMode) {
+                  isDeleteMode = false;
+                  selectedFolders.clear();
+                } else {
+                  isReorderMode = false;
+                  isDeleteMode = true;
+                  selectedFolders.clear();
+                }
+              });
+            },
           ),
         ],
       ),
@@ -434,6 +574,10 @@ class _MyPageState extends State<MyPage> {
           // 처음 데이터를 가져올 때만 리스트 초기화
           if (folderList.isEmpty || folderList.length != snapshot.data!.length) {
             folderList = snapshot.data!;
+          }
+
+          if (isDeleteMode) {
+            return _buildDeleteModeList(folderList);
           }
 
           if (isReorderMode) {
@@ -469,6 +613,19 @@ class _MyPageState extends State<MyPage> {
           }
         },
       ),
+      bottomNavigationBar: isDeleteMode && selectedFolders.isNotEmpty
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: FilledButton.icon(
+                  onPressed: _deleteSelectedFolders,
+                  icon: const Icon(Icons.delete_forever),
+                  label: const Text('선택한 폴더 삭제'),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

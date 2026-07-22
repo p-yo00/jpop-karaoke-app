@@ -219,11 +219,15 @@ class SongListWidget extends State<SongListBody> {
   Future<void> _updateSavedOrder() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 현재 리스트의 모든 노래를 하나의 리스트로 변환
-    List<String> allFavorites = songList.map((song) => jsonEncode(song.toJson())).toList();
+    // 1. 현재 어떤 폴더인지 확인 (기본값은 '기본 폴더')
+    String folderName = widget.folderName ?? '기본 폴더';
+    String key = 'folder_$folderName';
 
-    // 'favorites' 키 하나에 모두 저장
-    await prefs.setStringList('favorites', allFavorites);
+    // 2. 현재 songList(순서가 바뀐 상태)를 JSON 문자열 리스트로 변환
+    List<String> updatedList = songList.map((song) => jsonEncode(song.toJson())).toList();
+
+    // 3. 해당 폴더의 키값에만 덮어쓰기
+    await prefs.setStringList(key, updatedList);
   }
 
   Future<List<Song>> loadSongList() async {
